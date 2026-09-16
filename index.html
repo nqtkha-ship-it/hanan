@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake & Ladder + Wordle</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  color: white;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  margin: 5px 0;
+}
+
+.subtitle {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.game {
+  display: grid;
+  grid-template-columns: minmax(300px,700px) 300px;
+  gap: 20px;
+  justify-content: center;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(10,1fr);
+  aspect-ratio: 1;
+  border: 5px solid white;
+  border-radius: 15px;
+  overflow: hidden;
+  background: #222;
+  box-shadow: 0 15px 40px rgba(0,0,0,.3);
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 5px;
+  font-weight: bold;
+  color: #222;
+  border: 1px solid rgba(0,0,0,.15);
+}
+
+.cell:nth-child(odd) { background:#ffe082; }
+.cell:nth-child(even) { background:#81d4fa; }
+
+.number {
+  position:absolute;
+  top:3px;
+  right:5px;
+}
+
+.tokens {
+  position:absolute;
+  left:3px;
+  bottom:2px;
+  font-size:20px;
+}
+
+.panel {
+  background:rgba(255,255,255,.15);
+  padding:20px;
+  border-radius:15px;
+  box-shadow:0 10px 30px rgba(0,0,0,.2);
+}
+
+button {
+  width:100%;
+  border:0;
+  border-radius:10px;
+  padding:13px;
+  margin-top:10px;
+  font-size:17px;
+  font-weight:bold;
+  cursor:pointer;
+  background:#ffca28;
+  color:#222;
+}
+
+button:hover {
+  background:#ffd54f;
+}
+
+button:disabled {
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.info {
+  background:rgba(0,0,0,.2);
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:12px;
+}
+
+.dice {
+  font-size:55px;
+  text-align:center;
+  margin:10px;
+}
+
+#message {
+  text-align:center;
+  font-weight:bold;
+  min-height:45px;
+}
+
+.quiz-cell {
+  background:#ce93d8 !important;
+}
+
+/* WORDLE */
+
+#wordle {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.75);
+  z-index:100;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+
+.wordle-box {
+  background:#202124;
+  width:min(430px,100%);
+  border-radius:18px;
+  padding:20px;
+  text-align:center;
+}
+
+.wordle-box h2 {
+  margin-top:0;
+}
+
+#grid {
+  display:grid;
+  gap:5px;
+  justify-content:center;
+  margin:15px auto;
+}
+
+.row {
+  display:flex;
+  gap:5px;
+}
+
+.tile {
+  width:42px;
+  height:42px;
+  border:2px solid #555;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:21px;
+  font-weight:bold;
+  text-transform:uppercase;
+}
+
+.correct {
+  background:#538d4e;
+  border-color:#538d4e;
+}
+
+.present {
+  background:#b59f3b;
+  border-color:#b59f3b;
+}
+
+.absent {
+  background:#3a3a3c;
+  border-color:#3a3a3c;
+}
+
+#guess {
+  width:100%;
+  padding:13px;
+  border-radius:10px;
+  border:0;
+  font-size:18px;
+  text-align:center;
+  text-transform:uppercase;
+}
+
+#quizMessage {
+  min-height:25px;
+  margin:8px;
+}
+
+@media(max-width:800px) {
+  .game {
+    grid-template-columns:1fr;
+  }
+
+  .board {
+    width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🐍 Snake & Ladder + Wordle 🔤</h1>
+<div class="subtitle">Naik tangga, elak ular dan selesaikan Wordle!</div>
+
+<div class="game">
+
+<div class="board" id="board"></div>
+
+<div class="panel">
+
+<div class="info">
+<b>Pemain:</b>
+<div id="turn">Pemain 1 🔴</div>
+</div>
+
+<div class="info">
+<b>Kedudukan</b>
+<div id="positions">Pemain 1: 1<br>Pemain 2: 1</div>
+</div>
+
+<div class="dice" id="dice">🎲</div>
+
+<button id="rollBtn" onclick="rollDice()">ROLL DICE</button>
+
+<button onclick="newGame()">🔄 GAME BARU</button>
+
+<div id="message">
+Giliran Pemain 1. Tekan ROLL DICE!
+</div>
+
+</div>
+</div>
+</div>
+
+
+<!-- WORDLE -->
+
+<div id="wordle">
+
+<div class="wordle-box">
+
+<h2>🔤 WORDLE QUIZ</h2>
+
+<p id="wordleInfo">
+Cari perkataan yang betul!
+</p>
+
+<div id="grid"></div>
+
+<input
+id="guess"
+maxlength="10"
+autocomplete="off"
+placeholder="Taip jawapan..."
+>
+
+<button onclick="submitGuess()">TEKA</button>
+
+<div id="quizMessage"></div>
+
+</div>
+</div>
+
+
+<script>
+
+const words = [
+  "SEKOLAH",
+  "KOMPUTER",
+  "PELAJAR",
+  "GURU",
+  "MALAYSIA",
+  "MERDEKA",
+  "KELUARGA",
+  "PERMAINAN",
+  "KAWAN",
+  "ILMU",
+  "BAHAGIA",
+  "KESIHATAN",
+  "MATAHARI",
+  "PELANGI",
+  "BINTANG"
+];
+
+/*
+  Perkataan pendek seperti GURU/KAWAN juga ada,
+  tetapi sistem Wordle membenarkan jawapan 4-10 huruf.
+  Untuk 6-10 sahaja, buang perkataan pendek di atas.
+*/
+
+const wordList = words.filter(w => w.length >= 6 && w.length <= 10);
+
+let answer = "";
+let currentRow = 0;
+let currentPlayer = 0;
+
+let positions = [1,1];
+
+const snakes = {
+  17:7,
+  54:34,
+  62:19,
+  64:60,
+  87:24,
+  93:73,
+  95:75,
+  99:78
+};
+
+const ladders = {
+  4:25,
+  9:31,
+  20:38,
+  28:55,
+  40:59,
+  51:67,
+  63:81,
+  71:91
+};
+
+const quizCells = [
+  15, 30, 45, 60, 75, 90
+];
+
+const board = document.getElementById("board");
+
+function createBoard() {
+
+  board.innerHTML = "";
+
+  /*
+    Paparan nombor 100 -> 1 secara zig-zag
+  */
+
+  let numbers = [];
+
+  for(let row=9; row>=0; row--) {
+
+    let start = row * 10 + 1;
+    let arr = [];
+
+    for(let i=0;i<10;i++) {
+      arr.push(start+i);
+    }
+
+    if(row % 2 === 1) {
+      arr.reverse();
+    }
+
+    numbers.push(...arr);
+  }
+
+  numbers.forEach(num => {
+
+    const cell = document.createElement("div");
+
+    cell.className = "cell";
+
+    if(quizCells.includes(num)) {
+      cell.classList.add("quiz-cell");
+    }
+
+    cell.innerHTML = `
+      <span class="number">${num}</span>
+      <span class="tokens" id="cell-${num}"></span>
+    `;
+
+    board.appendChild(cell);
+
+  });
+
+  updateTokens();
+}
+
+function updateTokens() {
+
+  document.querySelectorAll(".tokens").forEach(x => x.innerHTML="");
+
+  positions.forEach((pos,index) => {
+
+    const token = document.getElementById("cell-"+pos);
+
+    if(token) {
+      token.innerHTML += index === 0 ? "🔴" : "🔵";
+    }
+
+  });
+
+  document.getElementById("positions").innerHTML =
+    `Pemain 1 🔴: ${positions[0]}<br>
+     Pemain 2 🔵: ${positions[1]}`;
+}
+
+function rollDice() {
+
+  const btn = document.getElementById("rollBtn");
+
+  btn.disabled = true;
+
+  const dice = Math.floor(Math.random()*6)+1;
+
+  document.getElementById("dice").textContent =
+    ["","⚀","⚁","⚂","⚃","⚄","⚅"][dice];
+
+  let oldPos = positions[currentPlayer];
+
+  let newPos = oldPos + dice;
+
+  if(newPos > 100) {
+    newPos = oldPos;
+  }
+
+  positions[currentPlayer] = newPos;
+
+  updateTokens();
+
+  setTimeout(() => {
+
+    if(snakes[newPos]) {
+
+      positions[currentPlayer] = snakes[newPos];
+
+      document.getElementById("message").textContent =
+        `🐍 Alamak! Kena ular! Turun ke ${snakes[newPos]}.`;
+
+      updateTokens();
+
+    }
+
+    else if(ladders[newPos]) {
+
+      positions[currentPlayer] = ladders[newPos];
+
+      document.getElementById("message").textContent =
+        `🪜 Hebat! Naik tangga ke ${ladders[newPos]}.`;
+
+      updateTokens();
+
+    }
+
+    else if(quizCells.includes(newPos)) {
+
+      document.getElementById("message").textContent =
+        "🔤 Petak Wordle! Selesaikan kuiz.";
+
+      openWordle();
+
+      return;
+
+    }
+
+    if(positions[currentPlayer] >= 100) {
+
+      document.getElementById("message").textContent =
+        `🏆 PEMAIN ${currentPlayer+1} MENANG!`;
+
+      return;
+
+    }
+
+    nextPlayer();
+
+  },500);
+}
+
+function nextPlayer() {
+
+  currentPlayer = currentPlayer === 0 ? 1 : 0;
+
+  document.getElementById("turn").textContent =
+    currentPlayer === 0 ? "Pemain 1 🔴" : "Pemain 2 🔵";
+
+  document.getElementById("message").textContent =
+    `Giliran Pemain ${currentPlayer+1}. Tekan ROLL DICE!`;
+
+  document.getElementById("rollBtn").disabled = false;
+}
+
+
+/* WORDLE */
+
+function openWordle() {
+
+  answer = wordList[Math.floor(Math.random()*wordList.length)];
+
+  currentRow = 0;
+
+  document.getElementById("wordle").style.display = "flex";
+
+  document.getElementById("quizMessage").textContent =
+    `Perkataan ini mempunyai ${answer.length} huruf.`;
+
+  createGrid(answer.length);
+
+  document.getElementById("guess").value = "";
+
+  document.getElementById("guess").focus();
+}
+
+function createGrid(length) {
+
+  const grid = document.getElementById("grid");
+
+  grid.innerHTML = "";
+
+  grid.style.gridTemplateRows = `repeat(6, 1fr)`;
+
+  for(let r=0;r<6;r++) {
+
+    const row = document.createElement("div");
+
+    row.className = "row";
+
+    for(let c=0;c<length;c++) {
+
+      const tile = document.createElement("div");
+
+      tile.className = "tile";
+
+      tile.id = `tile-${r}-${c}`;
+
+      row.appendChild(tile);
+    }
+
+    grid.appendChild(row);
+  }
+}
+
+function submitGuess() {
+
+  const input = document.getElementById("guess");
+
+  const guess = input.value.trim().toUpperCase();
+
+  if(guess.length !== answer.length) {
+
+    document.getElementById("quizMessage").textContent =
+      `Masukkan tepat ${answer.length} huruf.`;
+
+    return;
+  }
+
+  if(currentRow >= 6) return;
+
+  for(let i=0;i<guess.length;i++) {
+
+    const tile = document.getElementById(
+      `tile-${currentRow}-${i}`
+    );
+
+    tile.textContent = guess[i];
+
+    if(guess[i] === answer[i]) {
+
+      tile.classList.add("correct");
+
+    } else if(answer.includes(guess[i])) {
+
+      tile.classList.add("present");
+
+    } else {
+
+      tile.classList.add("absent");
+    }
+  }
+
+  if(guess === answer) {
+
+    document.getElementById("quizMessage").textContent =
+      "🎉 Betul! Wordle berjaya!";
+
+    setTimeout(() => {
+
+      document.getElementById("wordle").style.display = "none";
+
+      document.getElementById("message").textContent =
+        `🎉 Pemain ${currentPlayer+1} berjaya menjawab Wordle! Giliran diteruskan.`;
+
+      document.getElementById("rollBtn").disabled = false;
+
+    },1200);
+
+    return;
+  }
+
+  currentRow++;
+
+  input.value = "";
+
+  if(currentRow >= 6) {
+
+    document.getElementById("quizMessage").textContent =
+      `❌ Cuba lagi lain kali! Jawapan: ${answer}`;
+
+    setTimeout(() => {
+
+      document.getElementById("wordle").style.display = "none";
+
+      nextPlayer();
+
+    },1800);
+
+  } else {
+
+    document.getElementById("quizMessage").textContent =
+      `Percubaan ${currentRow}/6`;
+  }
+}
+
+document.getElementById("guess").addEventListener(
+  "keydown",
+  function(e) {
+    if(e.key === "Enter") {
+      submitGuess();
+    }
+  }
+);
+
+function newGame() {
+
+  positions = [1,1];
+
+  currentPlayer = 0;
+
+  document.getElementById("dice").textContent = "🎲";
+
+  document.getElementById("turn").textContent =
+    "Pemain 1 🔴";
+
+  document.getElementById("message").textContent =
+    "Game baru! Giliran Pemain 1.";
+
+  document.getElementById("rollBtn").disabled = false;
+
+  document.getElementById("wordle").style.display = "none";
+
+  createBoard();
+}
+
+createBoard();
+
+</script>
+
+</body>
+</html>
